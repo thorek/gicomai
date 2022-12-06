@@ -14,11 +14,13 @@ const createOpenEditorCommand = ({
   git: GitService;
 }) => {  
   return vscode.commands.registerCommand(
-    'gicomai.openEditor',
+    'gicomai.setAiCommitMessage',
     () => {
       const columnToShowIn = vscode.window.activeTextEditor
         ? vscode.window.activeTextEditor.viewColumn
         : undefined;
+
+        console.log("here call");
 
       const populateCommitList = () => {
         git
