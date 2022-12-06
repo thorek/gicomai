@@ -1,10 +1,9 @@
+import * as _ from 'lodash';
+import { Configuration, OpenAIApi } from "openai";
 import * as vscode from 'vscode';
-import { platform } from 'os';
-import createPostMessage from '../utils/createPostMessage';
-import EditorTab from '../webviews/EditorTab';
 import GitService from '../utils/GitService';
 
-const createOpenEditorCommand = ({
+const setAiCommitMessage = ({
   context,
   currentPanel,
   git,
@@ -15,150 +14,38 @@ const createOpenEditorCommand = ({
 }) => {  
   return vscode.commands.registerCommand(
     'gicomai.setAiCommitMessage',
-    () => {
-      const columnToShowIn = vscode.window.activeTextEditor
-        ? vscode.window.activeTextEditor.viewColumn
-        : undefined;
+    async () => {
 
-        console.log("here call");
+      const repo = git.getSelectedRepository();
+      let diff = await repo?.diff( true );
+      if( _.size(diff) > 3000 ) diff = _.truncate( diff, {length: 3000} );
+      if( ! diff ) return;
 
-      const populateCommitList = () => {
-        git
-          .getRecentCommitMessages(10)
-          .then(commits => {
-            const message = createPostMessage('recentCommitMessages', commits);
-
-            if (currentPanel) {
-              currentPanel.webview.postMessage(message);
-            }
-          })
-          .catch(er => {
-            vscode.window.showErrorMessage('Something went wrong', er);
-          });
-      };
-
-      const confirmAmend = async (payload: string) => {
-        const confirmAmend = vscode.workspace.getConfiguration('commit-message-editor').get('confirmAmend');
-
-        if (!confirmAmend) {
-          performAmend(payload);
-          return;
-        }
-
-        const labelOk = 'Yes';
-        const labelAlways = 'Always';
-
-        const selected = await vscode.window.showWarningMessage(
-          'Are you sure want to continue? Your last commit will be undone.',
-          { modal: true },
-          labelOk,
-          labelAlways
-        );
-
-        if ([labelOk, labelAlways].includes(selected as string)) {
-          performAmend(payload);
-        }
-
-        if (selected === labelAlways) {
-          vscode.workspace.getConfiguration('commit-message-editor').update('confirmAmend', false, vscode.ConfigurationTarget.Global);
-        }
-      };
-
-      const performAmend = async (commitMessage: string) => {
-        await vscode.commands.executeCommand('git.undoCommit');
-
-        git.setSCMInputBoxMessage(commitMessage);
-        populateCommitList();
-
-        if (currentPanel) {
-          currentPanel.webview.postMessage(createPostMessage('amendPerformed'));
-        }
-      };
-
-      const createRepositoryInfoPostMessage = () => {
-        const info = {
-          numberOfRepositories: git.getNumberOfRepositories(),
-          selectedRepositoryPath: git.getSelectedRepositoryPath(),
-        };
-
-        return createPostMessage('repositoryInfo', info);
-      };
-
-      if (currentPanel) {
-        currentPanel.reveal(columnToShowIn);
-        return;
-      }
-
-      currentPanel = vscode.window.createWebviewPanel(
-        'editCommitMessage',
-        'Edit commit message',
-        <vscode.ViewColumn>columnToShowIn,
-        {
-          enableScripts: true,
-          retainContextWhenHidden: true,
-        }
-      );
-      const { webview } = currentPanel;
-      const { extensionPath } = context;
-
-      currentPanel.webview.html = EditorTab({
-        extensionPath,
-        platform: platform(),
-        webview,
+      git.setSCMInputBoxMessage("...asking GPT3 for a commit message");
+      
+      const configuration = new Configuration({
+        apiKey: process.env.OPENAI_APIKEY
       });
+      
+      const openai = new OpenAIApi(configuration);
 
-      currentPanel.webview.onDidReceiveMessage(
-        data => {
-          const { command, payload } = data;
+      try {
+        const response = await openai.createCompletion({
+          model:"text-davinci-003",
+          prompt: "commit message for\n\n" + diff
+        });
 
-          switch (command) {
-            case 'copyFromExtensionMessageBox':
-              git.setSCMInputBoxMessage(payload);
-              break;
-            case 'closeTab':
-              (<vscode.WebviewPanel>currentPanel).dispose();
-              break;
-            case 'requestConfig':
-              (<vscode.WebviewPanel>currentPanel).webview.postMessage(
-                createPostMessage('receiveConfig', vscode.workspace.getConfiguration('commit-message-editor'))
-              );
-              break;
-            case 'requestRecentCommits':
-              populateCommitList();
-              break;
-            case 'confirmAmend':
-              confirmAmend(payload);
-              break;
-            case 'openConfigurationPage':
-              vscode.commands.executeCommand(
-                'commitMessageEditor.openSettingsPage'
-              );
-              break;
-            default:
-              break;
-          }
-        },
-        undefined,
-        context.subscriptions
-      );
+        const message = _.trim( response.data.choices[0].text );  
+        
+        console.log({diff, message})
+        git.setSCMInputBoxMessage( message || 'sorry, didnt work');        
+      } catch (error) {
+        console.error( error );
+        git.setSCMInputBoxMessage('');
+      }  
 
-      currentPanel.onDidDispose(
-        () => {
-          currentPanel = undefined;
-        },
-        null,
-        context.subscriptions
-      );
-
-      git.onRepositoryDidChange(() => {
-        currentPanel?.webview.postMessage(createRepositoryInfoPostMessage());
-        populateCommitList();
-      });
-
-      currentPanel.webview.postMessage(createPostMessage('copyFromSCMInputBox', git.getSCMInputBoxMessage()));
-      currentPanel.webview.postMessage(createRepositoryInfoPostMessage());
     }
   );
 };
 
-export default createOpenEditorCommand;
+export default setAiCommitMessage;

@@ -17,7 +17,7 @@ class GitService {
     this.api = this.gitExtension.exports.getAPI(1);
   }
 
-  private getSelectedRepository(): Repository | undefined {
+  getSelectedRepository(): Repository | undefined {
     const selected = this.api?.repositories.find(
       (repo: Repository) => repo.ui.selected
     );

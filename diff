@@ -1,0 +1,20 @@
+diff --git a/src/commands/set-ai-commit-message.ts b/src/commands/set-ai-commit-message.ts
+index c8f0230..0683f1b 100644
+--- a/src/commands/set-ai-commit-message.ts
++++ b/src/commands/set-ai-commit-message.ts
+@@ -14,12 +14,14 @@ const createOpenEditorCommand = ({
+   git: GitService;
+ }) => {  
+   return vscode.commands.registerCommand(
+-    'gicomai.openEditor',
++    'gicomai.setAiCommitMessage',
+     () => {
+       const columnToShowIn = vscode.window.activeTextEditor
+         ? vscode.window.activeTextEditor.viewColumn
+         : undefined;
+ 
++        console.log("here call");
++
+       const populateCommitList = () => {
+         git
+           .getRecentCommitMessages(10)
