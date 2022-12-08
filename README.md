@@ -1,16 +1,13 @@
 # gicomai README
 
-This is the README for your extension "gicomai". After writing up a brief description, we recommend including the following sections.
+gicomai is a not very creative acronym for **gi**t **co**mmit **me**ssages from **ai**
+
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+ gicomai takes your `diff` from the current repository and asks (https://beta.openai.com) to generate a commit message. The AI is usually quite impressive with this task.
 
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+ This is triggered by `Command-Enter`
 
 ## Requirements
 
