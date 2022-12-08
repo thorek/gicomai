@@ -2,12 +2,13 @@
 
 gicomai is a not very creative acronym for **gi**t **co**mmit **me**ssages from **ai**
 
-
 ## Features
 
  gicomai takes your `diff` from the current repository and asks (https://beta.openai.com) to generate a commit message. The AI is usually quite impressive with this task.
 
- This is triggered by pressing `Command-Enter` in the commit input (or selecting) `Commit - Commit` from the git menu. This opens the git commit message editor. gicomai will place the ai generated commit message on top of this file. Feel free to edit it. When closing the editor - the commit is performed. 
+ This is triggered by pressing `Command-Enter` in the **empty** commit input (or selecting) `Commit - Commit` from the git menu. This opens the git commit message editor. gicomai will place the ai generated commit message on top of this file. Feel free to edit it. When closing the editor - the commit is performed. 
+
+ So when you enter your own commit message into the commit input, the generation will not be triggered.
 
 ## Requirements
 
