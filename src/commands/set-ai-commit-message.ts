@@ -24,9 +24,9 @@ const getOpenAIApi = () => {
 
 const getDiff = async (git:GitService) => {
   const repo = git.getSelectedRepository();
-  let diff = await repo?.diff( true );
-  if( _.size(diff) > 3000 ) diff = _.truncate( diff, {length: 3000} );
-  return diff;
+  const diff = await repo?.diff( false );
+  return _.compact( _.map( _.split(diff, 'diff --git '), diff =>  
+    _.size(diff) > 3000 ? _.truncate( diff, {length: 3000} ) : diff ));
 }
 
 const getMessage = async (openai:OpenAIApi, git:GitService, diff:string) => {
@@ -37,8 +37,7 @@ const getMessage = async (openai:OpenAIApi, git:GitService, diff:string) => {
   return sanitizeMessage( response.data.choices[0].text );
 }
 
-
-const execute = (openai:OpenAIApi, git:GitService, diff:string ) => {
+const execute = (openai:OpenAIApi, git:GitService, diff:string[] ) => {
   const progressOptions = {
     location: vscode.ProgressLocation.Notification,
     title: 'Asking GPT3 for a commit message...',
@@ -48,9 +47,13 @@ const execute = (openai:OpenAIApi, git:GitService, diff:string ) => {
   const operation = async () => {
     try {
       git.setSCMInputBoxMessage("...");
-      const message = await getMessage( openai, git, diff );
-      if( ! message ) return vscode.window.showErrorMessage('Commit message could not be determined');
-      git.setSCMInputBoxMessage( message );  
+      const messages = [];
+      for( const fileDiff of diff ){
+        const message = await getMessage( openai, git, fileDiff );
+        if( message ) messages.push( message );
+      }
+      if( _.isEmpty( messages ) ) return vscode.window.showErrorMessage('Commit message could not be determined');
+      git.setSCMInputBoxMessage( _.join( messages, '\n' ) );  
     } catch (error) {
       vscode.window.showErrorMessage( _.toString( error ) );
       git.setSCMInputBoxMessage('');
@@ -75,8 +78,8 @@ const setAiCommitMessage = ({git}: {git: GitService}) => {
       const openai = getOpenAIApi();
       if( ! openai ) return; 
     
-      const diff = await getDiff( git );
-      if( ! diff ) return;
+      const diff = await getDiff( git );      
+      if( _.isEmpty( diff ) ) return;
       
       execute( openai, git, diff );
     }
