@@ -28,7 +28,8 @@ const getOpenAIApi = () => {
 
 const getDiff = async (git:GitService) => {
   const repo = git.getSelectedRepository();
-  const diff = await repo?.diff( false );
+  let diff = await repo?.diff( true );
+  if( _.isEmpty( diff ) ) diff = await repo?.diff( false );
   return _.compact( _.map( _.split(diff, 'diff --git '), diff =>  
     _.size(diff) > 3000 ? _.truncate( diff, {length: 3000} ) : diff ));
 }
@@ -73,12 +74,12 @@ const execute = async (git:GitService) => {
     const diffs = await getDiff( git );      
     if( _.isEmpty( diffs ) ) return;
 
-    const messages = await getMessages( openai, diffs );
+    let messages = await getMessages( openai, diffs );
     if( _.isEmpty( messages) ) return;
   
+    if( _.size( messages) > 1 ) messages = _.map( messages, message => `* ${message}` );
     const content = _.join( messages, '\n\n' );
-    setConentToDoc( content );
-
+    setConentToDoc( content + '\n');
   } catch (error) {
     vscode.window.showErrorMessage( _.toString( error ) );
     console.error( error );
