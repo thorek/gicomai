@@ -14,30 +14,6 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "gicomai.setAiCommitMessage",
-        "title": "Gets AI commit message",
-        "category": "Git",
-        "icon": "$(quote)"
-      }
-    ],
-    "menus": {
-      "scm/title": [
-        {
-          "command": "gicomai.setAiCommitMessage",
-          "group": "navigation@1",
-          "title": "Get AI Message",
-          "when": "scmProvider == git"
-        },
-        {
-          "command": "gicomai.setAiCommitMessage",
-          "group": "inline",
-          "title": "Get AI Message",
-          "when": "scmProvider == git"
-        }
-      ]
-    },
     "configuration": {
       "type": "object",
       "properties": {
