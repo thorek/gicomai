@@ -3,6 +3,11 @@
   "displayName": "gicomai",
   "description": "GIT commit messages based on ChatGPT AI",
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thorek/gicomai.git"
+  },
+  "publisher": "betterobjects",
   "engines": {
     "vscode": "^1.73.0"
   },
