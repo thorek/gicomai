@@ -2,7 +2,7 @@
   "name": "gicomai",
   "displayName": "gicomai",
   "description": "GIT commit messages based on ChatGPT AI",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/thorek/gicomai.git"
