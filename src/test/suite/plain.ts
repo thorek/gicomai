@@ -3,7 +3,7 @@ import { Configuration, OpenAIApi } from 'openai';
 
 
 const getOpenAIApi = () => {
-  const apiKey = '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';
+  const apiKey = 'key-here';
   const configuration = new Configuration({apiKey});  
   const openai = new OpenAIApi(configuration);
   return openai;
@@ -16,7 +16,7 @@ index 46682c7..0000000
 --- a/.env
 +++ /dev/null
 @@ -1 +0,0 @@
--OPENAI_APIKEY=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
+-OPENAI_APIKEY=0000000000000000
 \ No newline at end of file`
 
 
