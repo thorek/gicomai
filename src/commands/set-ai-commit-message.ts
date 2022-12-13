@@ -32,11 +32,11 @@ const getDiffs = async (git:GitService) => {
   const repo = git.getSelectedRepository();
   let diff = await repo?.diff( true );
   if( _.isEmpty( diff ) ) diff = await repo?.diff( false );
-  return _.compact( _.map( _.split(diff, 'diff --git '), diff =>  
-    _.size(diff) > 3000 ? _.truncate( diff, {length: 3000} ) : diff ));
+  return _.compact( _.split(diff, 'diff --git '));
 }
 
 const getMessage = async (openai:OpenAIApi, diff:string) => {
+  if( diff.length > 1000 ) diff = diff.substring(0, 1000);
   const response = await openai.createCompletion({
     "model": "text-davinci-003",
     "prompt": "git commit message for diff\n" + diff,      
@@ -47,7 +47,6 @@ const getMessage = async (openai:OpenAIApi, diff:string) => {
   const fileName = result ? result[1] : ''
   return `${fileName}: ${message}`;
 }
-
 
 const sanitizeMessage = (message:string|undefined ) => {
   if( ! message ) return undefined;  
@@ -68,6 +67,7 @@ const sanitizeMessage = (message:string|undefined ) => {
       break;
     }
   }
+  message = _.replace(message, new RegExp('\n','g'),' | ');
   return message;
 }
 
@@ -97,12 +97,17 @@ const execute = async (git:GitService) => {
 
     await setMessagesToDoc( openai, diffs );
   } catch (error) {
-    if( _.get( error, 'response.status') === 429 ) {
-      vscode.window.showErrorMessage( 'Sorry, rate limit reached. Try again in a minute' );
-    } else {
-      vscode.window.showErrorMessage( _.toString( error ) );
-      console.error( error );
-    }
+    const status = _.get( error, 'response.status');
+    if( status === 401 ) return vscode.window.showErrorMessage( 
+      'Sorry, your API_KEY seems not be accepted.' );
+    if( status === 429 ) return vscode.window.showErrorMessage( 
+      'Sorry, rate limit reached. Try again in a minute.' );
+      
+    const message = _.get( error, 'error.response.data.error.message' );
+    if( message ) return vscode.window.showErrorMessage( message );
+    
+    vscode.window.showErrorMessage( _.toString( error ) );
+    console.error( error );
   }
 }
 
