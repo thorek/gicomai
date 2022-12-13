@@ -38,9 +38,14 @@ Please provide your _api-key_ in the settings:
 
 ## Known Issues
 
-None so far
+There is a limit of 4.000 tokens the API can handle. This translates roughly to 1.000 characters. Therefore only the 1st 1.000 characters of a file diff will be submittedt to the OpenAI API. There is also a limit of 20 calls per minute for the free plan. 
 
 ## Release Notes
+
+### 0.0.4
+
+- better error messages
+- added known issues to the Readme
 
 ### 0.0.3
 
