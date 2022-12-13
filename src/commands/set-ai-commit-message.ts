@@ -3,6 +3,8 @@ import { Configuration, OpenAIApi } from "openai";
 import * as vscode from 'vscode';
 import GitService from '../utils/GitService';
 
+const fileNameRegExp = new RegExp('.*b\/(.*)');
+
 const progressOptions = {
   location: vscode.ProgressLocation.Notification,
   title: 'Asking GPT3 for a commit message...',
@@ -11,7 +13,7 @@ const progressOptions = {
 
 const getApiKey = () => {
   const config = vscode.workspace.getConfiguration('gicomai');
-  const apiKey:string = _.toString(config.get('openai_apikey')); // || process.env.OPENAI_APIKEY;
+  const apiKey:string = _.toString(config.get('openai_apikey')); 
   if( apiKey ) return _.trim(apiKey);
   vscode.window.showInformationMessage(
     `Please provide an OpenAI API_KEY in the settings./
@@ -26,7 +28,7 @@ const getOpenAIApi = () => {
   return openai;
 }
 
-const getDiff = async (git:GitService) => {
+const getDiffs = async (git:GitService) => {
   const repo = git.getSelectedRepository();
   let diff = await repo?.diff( true );
   if( _.isEmpty( diff ) ) diff = await repo?.diff( false );
@@ -36,33 +38,52 @@ const getDiff = async (git:GitService) => {
 
 const getMessage = async (openai:OpenAIApi, diff:string) => {
   const response = await openai.createCompletion({
-    model:"text-davinci-003",
-    prompt: "commit message for\n\n" + diff
+    "model": "text-davinci-003",
+    "prompt": "git commit message for diff\n" + diff,      
+    "n": 1
   });
-  return sanitizeMessage( response.data.choices[0].text );
+  const message = sanitizeMessage( response.data.choices[0].text );
+  const result = fileNameRegExp.exec( diff.split('\n')[0] );
+  const fileName = result ? result[1] : ''
+  return `${fileName}: ${message}`;
 }
 
-const getMessages =async (openai:OpenAIApi, diffs:string[]) => {
-  const messages:string[] = [];
-  for( const diff of diffs ){
-    const message = await getMessage( openai, diff );
-    if( message ) messages.push( message );
-  }
-  return messages;
-}
 
-const sanitizeMessage = (message?:string) => {
-  if( ! message ) return undefined;
+const sanitizeMessage = (message:string|undefined ) => {
+  if( ! message ) return undefined;  
   message = _.trim( message );
-  if( _.startsWith( message, 'This commit ') ) message = message.substring( 12 );
+  const superfluous = [
+    'this is a commit to ',
+    'this commmit ', 
+    'commit message: ',    
+    'commit to ',
+    'commit ',
+    'git commit message: ',
+    'message: ',
+    'message '
+  ];
+  for( const term of superfluous ){
+    if( _.startsWith( _.toLower( message ), term ) ) {
+      message = message?.substring( term.length );
+      break;
+    }
+  }
   return message;
 }
 
-const setConentToDoc = async (content:string) => {
+const setMessagesToDoc = async (openai:OpenAIApi, diffs:string[]) => {
   const doc = vscode.window.activeTextEditor?.document;
-  if( ! doc || ! _.includes( doc.fileName, 'COMMIT_EDITMSG' ) ) return;  
+  if( ! doc || ! _.includes( doc.fileName, 'COMMIT_EDITMSG' ) ) return;    
+  for( const diff of diffs ){
+    const message = await getMessage( openai, diff );
+    if( message ) addContentToDoc( doc, message, diff.length > 1 );    
+  }
+}
+
+const addContentToDoc = (doc:vscode.TextDocument, content:string, list:boolean) => {
   const edit = new vscode.WorkspaceEdit();
-  edit.insert( doc.uri, new vscode.Position(0, 0), content);
+  if( list ) content = '* ' + content;  
+  edit.insert( doc.uri, new vscode.Position(0, 0), content + '\n');
   vscode.workspace.applyEdit(edit);
 }
 
@@ -71,18 +92,17 @@ const execute = async (git:GitService) => {
     const openai = getOpenAIApi();
     if( ! openai ) return; 
   
-    const diffs = await getDiff( git );      
+    const diffs = await getDiffs( git );      
     if( _.isEmpty( diffs ) ) return;
 
-    let messages = await getMessages( openai, diffs );
-    if( _.isEmpty( messages) ) return;
-  
-    if( _.size( messages) > 1 ) messages = _.map( messages, message => `* ${message}` );
-    const content = _.join( messages, '\n\n' );
-    setConentToDoc( content + '\n');
+    await setMessagesToDoc( openai, diffs );
   } catch (error) {
-    vscode.window.showErrorMessage( _.toString( error ) );
-    console.error( error );
+    if( _.get( error, 'response.status') === 429 ) {
+      vscode.window.showErrorMessage( 'Sorry, rate limit reached. Try again in a minute' );
+    } else {
+      vscode.window.showErrorMessage( _.toString( error ) );
+      console.error( error );
+    }
   }
 }
 
